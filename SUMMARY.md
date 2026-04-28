@@ -6,6 +6,16 @@ Current implemented surface:
 
 - `orb version`
 - `orb ping`
+- `orb customers list|get|costs|credits|credit-ledger`
+- `orb subscriptions list|get|usage|costs|schedule`
+- `orb plans list|get`
+- `orb prices list|get`
+- `orb metrics list|get`
+- `orb invoices list|get|summary|upcoming`
+- `orb credit-notes list|get`
+- `orb events search|volume`
+- `orb events backfills list|get`
+- `orb alerts list|get`
 
 Design goals:
 

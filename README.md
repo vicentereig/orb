@@ -36,7 +36,45 @@ export ORB_BASE_URL="https://api.withorb.com"
 ```sh
 orb version
 orb ping
+
+orb customers list --limit 50
+orb customers get --id cus_123
+orb customers get --external-id workspace_123
+orb customers costs --id cus_123 --from 2026-04-01T00:00:00Z --to 2026-05-01T00:00:00Z
+orb customers credits --id cus_123 --include-all-blocks
+orb customers credit-ledger --id cus_123 --entry-status committed
+
+orb subscriptions list --customer-id cus_123 --status active
+orb subscriptions get --id sub_123
+orb subscriptions usage --id sub_123 --from 2026-04-01T00:00:00Z --to 2026-05-01T00:00:00Z
+orb subscriptions costs --id sub_123 --from 2026-04-01T00:00:00Z --to 2026-05-01T00:00:00Z
+orb subscriptions schedule --id sub_123
+
+orb plans list
+orb plans get --id plan_123
+orb prices list
+orb prices get --id price_123
+orb metrics list
+orb metrics get --id metric_123
+
+orb invoices list --customer-id cus_123
+orb invoices get --id inv_123
+orb invoices summary --customer-id cus_123
+orb invoices upcoming --subscription-id sub_123
+orb credit-notes list
+orb credit-notes get --id cn_123
+
+orb events search --id event_id_1 --id event_id_2
+orb events search --ids-file ./event_ids.txt
+orb events volume --from 2026-04-01T00:00:00Z
+orb events backfills list
+orb events backfills get --id backfill_123
+
+orb alerts list --customer-id cus_123
+orb alerts get --id alert_123
 ```
+
+Event search maps to Orb's explicit event ID search API. It is not a general event query by customer, name, or property.
 
 Every command returns JSON:
 

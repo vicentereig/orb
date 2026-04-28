@@ -20,13 +20,25 @@ Usage:
   orb <command> [options]
 
 Commands:
-  version   Print CLI version information
-  ping      Check Orb API connectivity and credentials
+  version                    Print CLI version information
+  ping                       Check Orb API connectivity and credentials
+  customers list|get|costs|credits|credit-ledger
+  subscriptions list|get|usage|costs|schedule
+  plans list|get
+  prices list|get
+  metrics list|get
+  invoices list|get|summary|upcoming
+  credit-notes list|get
+  events search|volume
+  events backfills list|get
+  alerts list|get
 
 Global options:
   --api-key VALUE     Override ORB_API_KEY for this invocation
   --base-url URL      Override ORB_BASE_URL for this invocation
   --timeout DURATION  Request timeout (default: 60s)
+  --limit N           Page size for list commands (default: 20)
+  --cursor CURSOR     Pagination cursor
   --pretty            Pretty-print JSON
 `
 
