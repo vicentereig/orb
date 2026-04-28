@@ -88,6 +88,30 @@ func (f fakeClient) GetMetric(ctx context.Context, metricID string) (interface{}
 	return f.objectResponse, f.err
 }
 
+func (f fakeClient) ListInvoices(ctx context.Context, params InvoiceListParams) (Page, error) {
+	return f.pageResponse, f.err
+}
+
+func (f fakeClient) GetInvoice(ctx context.Context, invoiceID string) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) ListInvoiceSummary(ctx context.Context, params InvoiceListParams) (Page, error) {
+	return f.pageResponse, f.err
+}
+
+func (f fakeClient) GetUpcomingInvoice(ctx context.Context, subscriptionID string) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) ListCreditNotes(ctx context.Context, params CatalogListParams) (Page, error) {
+	return f.pageResponse, f.err
+}
+
+func (f fakeClient) GetCreditNote(ctx context.Context, creditNoteID string) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
 func TestVersion(t *testing.T) {
 	result := New(fakeClient{}, "v1.2.3").Version()
 
@@ -456,6 +480,92 @@ func TestGetMetricRequiresID(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 	if payload.Success || payload.Error.Type != "usage_error" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestListInvoicesSuccess(t *testing.T) {
+	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"id": "inv_123"}}, Count: 1}}, "dev")
+
+	result := app.ListInvoices(context.Background(), InvoiceListParams{CustomerID: "cus_123", Status: "issued"})
+
+	var payload struct {
+		Success bool                `json:"success"`
+		Data    []map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || len(payload.Data) != 1 {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetInvoiceSuccess(t *testing.T) {
+	app := New(fakeClient{objectResponse: map[string]string{"id": "inv_123"}}, "dev")
+
+	result := app.GetInvoice(context.Background(), "inv_123")
+
+	var payload struct {
+		Success bool              `json:"success"`
+		Data    map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || payload.Data["id"] != "inv_123" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestInvoiceSummarySuccess(t *testing.T) {
+	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"id": "summary_123"}}, Count: 1}}, "dev")
+
+	result := app.ListInvoiceSummary(context.Background(), InvoiceListParams{ExternalCustomerID: "workspace_123"})
+
+	var payload struct {
+		Success bool `json:"success"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestUpcomingInvoiceRequiresSubscriptionID(t *testing.T) {
+	app := New(fakeClient{}, "dev")
+
+	result := app.GetUpcomingInvoice(context.Background(), "")
+
+	var payload struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Type string `json:"type"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if payload.Success || payload.Error.Type != "usage_error" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestListCreditNotesSuccess(t *testing.T) {
+	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"id": "cn_123"}}, Count: 1}}, "dev")
+
+	result := app.ListCreditNotes(context.Background(), CatalogListParams{Limit: 20})
+
+	var payload struct {
+		Success bool                `json:"success"`
+		Data    []map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || len(payload.Data) != 1 {
 		t.Fatalf("unexpected result: %s", result)
 	}
 }

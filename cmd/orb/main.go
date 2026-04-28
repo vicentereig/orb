@@ -57,6 +57,8 @@ func main() {
 		result = executeSubscriptions(ctx, application, cmd)
 	case "plans", "prices", "metrics":
 		result = executeCatalog(ctx, application, cmd)
+	case "invoices", "credit-notes":
+		result = executeBilling(ctx, application, cmd)
 	default:
 		result = output.Error(fmt.Errorf("unknown command: %s", cmd.Name), "usage_error", nil)
 	}
@@ -190,6 +192,45 @@ func executeCatalog(ctx context.Context, application *app.App, cmd cli.Command) 
 			})
 		case "get":
 			return application.GetMetric(ctx, cmd.ID)
+		}
+	}
+	return output.Error(fmt.Errorf("unknown %s subcommand: %s", cmd.Resource, cmd.Operation), "usage_error", nil)
+}
+
+func executeBilling(ctx context.Context, application *app.App, cmd cli.Command) string {
+	switch cmd.Resource {
+	case "invoices":
+		params := app.InvoiceListParams{
+			Limit:              cmd.Globals.Limit,
+			Cursor:             cmd.Globals.Cursor,
+			CustomerID:         cmd.CustomerID,
+			ExternalCustomerID: cmd.ExternalCustomerID,
+			SubscriptionID:     cmd.SubscriptionID,
+			Status:             cmd.Status,
+			InvoiceDateAfter:   cmd.InvoiceDateAfter,
+			InvoiceDateBefore:  cmd.InvoiceDateBefore,
+		}
+		switch cmd.Operation {
+		case "list":
+			return application.ListInvoices(ctx, params)
+		case "get":
+			return application.GetInvoice(ctx, cmd.ID)
+		case "summary":
+			return application.ListInvoiceSummary(ctx, params)
+		case "upcoming":
+			return application.GetUpcomingInvoice(ctx, cmd.SubscriptionID)
+		}
+	case "credit-notes":
+		switch cmd.Operation {
+		case "list":
+			return application.ListCreditNotes(ctx, app.CatalogListParams{
+				Limit:         cmd.Globals.Limit,
+				Cursor:        cmd.Globals.Cursor,
+				CreatedAfter:  cmd.CreatedAfter,
+				CreatedBefore: cmd.CreatedBefore,
+			})
+		case "get":
+			return application.GetCreditNote(ctx, cmd.ID)
 		}
 	}
 	return output.Error(fmt.Errorf("unknown %s subcommand: %s", cmd.Resource, cmd.Operation), "usage_error", nil)

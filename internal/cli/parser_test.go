@@ -285,3 +285,54 @@ func TestParseCatalogCommandValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestParseBillingCommands(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		resource       string
+		op             string
+		id             string
+		subscriptionID string
+	}{
+		{name: "invoices list", args: []string{"invoices", "list", "--customer-id", "cus_123", "--subscription-id", "sub_123", "--status", "issued", "--invoice-date-after", "2026-04-01T00:00:00Z"}, resource: "invoices", op: "list", subscriptionID: "sub_123"},
+		{name: "invoices get", args: []string{"invoices", "get", "--id", "inv_123"}, resource: "invoices", op: "get", id: "inv_123"},
+		{name: "invoices summary", args: []string{"invoices", "summary", "--external-customer-id", "workspace_123"}, resource: "invoices", op: "summary"},
+		{name: "invoices upcoming", args: []string{"invoices", "upcoming", "--subscription-id", "sub_123"}, resource: "invoices", op: "upcoming", subscriptionID: "sub_123"},
+		{name: "credit notes list", args: []string{"credit-notes", "list", "--created-after", "2026-04-01T00:00:00Z"}, resource: "credit-notes", op: "list"},
+		{name: "credit notes get", args: []string{"credit-notes", "get", "--id", "cn_123"}, resource: "credit-notes", op: "get", id: "cn_123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, err := Parse(tt.args)
+			if err != nil {
+				t.Fatalf("Parse returned error: %v", err)
+			}
+			if cmd.Resource != tt.resource || cmd.Operation != tt.op || cmd.ID != tt.id || cmd.SubscriptionID != tt.subscriptionID {
+				t.Fatalf("unexpected command: %+v", cmd)
+			}
+		})
+	}
+}
+
+func TestParseBillingCommandValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "invoices requires subcommand", args: []string{"invoices"}},
+		{name: "invoices get requires id", args: []string{"invoices", "get"}},
+		{name: "invoices upcoming requires subscription id", args: []string{"invoices", "upcoming"}},
+		{name: "credit notes get requires id", args: []string{"credit-notes", "get"}},
+		{name: "credit notes rejects customer filter", args: []string{"credit-notes", "list", "--customer-id", "cus_123"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := Parse(tt.args); err == nil {
+				t.Fatalf("expected error")
+			}
+		})
+	}
+}

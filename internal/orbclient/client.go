@@ -150,6 +150,42 @@ func (c *Client) GetMetric(ctx context.Context, metricID string) (interface{}, e
 	return c.orb.Metrics.Fetch(ctx, metricID)
 }
 
+func (c *Client) ListInvoices(ctx context.Context, params app.InvoiceListParams) (app.Page, error) {
+	page, err := c.orb.Invoices.List(ctx, invoiceListParams(params))
+	if err != nil {
+		return app.Page{}, err
+	}
+	return pageFrom(page), nil
+}
+
+func (c *Client) GetInvoice(ctx context.Context, invoiceID string) (interface{}, error) {
+	return c.orb.Invoices.Fetch(ctx, invoiceID)
+}
+
+func (c *Client) ListInvoiceSummary(ctx context.Context, params app.InvoiceListParams) (app.Page, error) {
+	page, err := c.orb.Invoices.ListSummary(ctx, invoiceSummaryParams(params))
+	if err != nil {
+		return app.Page{}, err
+	}
+	return pageFrom(page), nil
+}
+
+func (c *Client) GetUpcomingInvoice(ctx context.Context, subscriptionID string) (interface{}, error) {
+	return c.orb.Invoices.FetchUpcoming(ctx, orbsdk.InvoiceFetchUpcomingParams{SubscriptionID: orbsdk.F(subscriptionID)})
+}
+
+func (c *Client) ListCreditNotes(ctx context.Context, params app.CatalogListParams) (app.Page, error) {
+	page, err := c.orb.CreditNotes.List(ctx, creditNoteListParams(params))
+	if err != nil {
+		return app.Page{}, err
+	}
+	return pageFrom(page), nil
+}
+
+func (c *Client) GetCreditNote(ctx context.Context, creditNoteID string) (interface{}, error) {
+	return c.orb.CreditNotes.Fetch(ctx, creditNoteID)
+}
+
 func customerListParams(params app.CustomerListParams) orbsdk.CustomerListParams {
 	var q orbsdk.CustomerListParams
 	if params.Limit > 0 {
@@ -409,6 +445,81 @@ func priceListParams(params app.PageParams) orbsdk.PriceListParams {
 
 func metricListParams(params app.CatalogListParams) orbsdk.MetricListParams {
 	var q orbsdk.MetricListParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	if params.CreatedAfter != nil {
+		q.CreatedAtGte = orbsdk.F(*params.CreatedAfter)
+	}
+	if params.CreatedBefore != nil {
+		q.CreatedAtLte = orbsdk.F(*params.CreatedBefore)
+	}
+	return q
+}
+
+func invoiceListParams(params app.InvoiceListParams) orbsdk.InvoiceListParams {
+	var q orbsdk.InvoiceListParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	if params.CustomerID != "" {
+		q.CustomerID = orbsdk.F(params.CustomerID)
+	}
+	if params.ExternalCustomerID != "" {
+		q.ExternalCustomerID = orbsdk.F(params.ExternalCustomerID)
+	}
+	if params.SubscriptionID != "" {
+		q.SubscriptionID = orbsdk.F(params.SubscriptionID)
+	}
+	if params.Status != "" {
+		q.Status = orbsdk.F([]orbsdk.InvoiceListParamsStatus{orbsdk.InvoiceListParamsStatus(params.Status)})
+	}
+	if params.InvoiceDateAfter != nil {
+		q.InvoiceDateGte = orbsdk.F(*params.InvoiceDateAfter)
+	}
+	if params.InvoiceDateBefore != nil {
+		q.InvoiceDateLte = orbsdk.F(*params.InvoiceDateBefore)
+	}
+	return q
+}
+
+func invoiceSummaryParams(params app.InvoiceListParams) orbsdk.InvoiceListSummaryParams {
+	var q orbsdk.InvoiceListSummaryParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	if params.CustomerID != "" {
+		q.CustomerID = orbsdk.F(params.CustomerID)
+	}
+	if params.ExternalCustomerID != "" {
+		q.ExternalCustomerID = orbsdk.F(params.ExternalCustomerID)
+	}
+	if params.SubscriptionID != "" {
+		q.SubscriptionID = orbsdk.F(params.SubscriptionID)
+	}
+	if params.Status != "" {
+		q.Status = orbsdk.F(orbsdk.InvoiceListSummaryParamsStatus(params.Status))
+	}
+	if params.InvoiceDateAfter != nil {
+		q.InvoiceDateGte = orbsdk.F(*params.InvoiceDateAfter)
+	}
+	if params.InvoiceDateBefore != nil {
+		q.InvoiceDateLte = orbsdk.F(*params.InvoiceDateBefore)
+	}
+	return q
+}
+
+func creditNoteListParams(params app.CatalogListParams) orbsdk.CreditNoteListParams {
+	var q orbsdk.CreditNoteListParams
 	if params.Limit > 0 {
 		q.Limit = orbsdk.F(int64(params.Limit))
 	}

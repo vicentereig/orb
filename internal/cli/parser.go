@@ -51,6 +51,9 @@ type Command struct {
 	SecondDimensionValue string
 	StartAfter           *time.Time
 	StartBefore          *time.Time
+	SubscriptionID       string
+	InvoiceDateAfter     *time.Time
+	InvoiceDateBefore    *time.Time
 }
 
 func Parse(args []string) (Command, error) {
@@ -120,6 +123,15 @@ func Parse(args []string) (Command, error) {
 		return cmd, nil
 	case "plans", "prices", "metrics":
 		cmd, err := parseCatalog(remaining[0], remaining[1:])
+		if err != nil {
+			return Command{}, err
+		}
+		cmd.Name = remaining[0]
+		cmd.Resource = remaining[0]
+		cmd.Globals = globals
+		return cmd, nil
+	case "invoices", "credit-notes":
+		cmd, err := parseBilling(remaining[0], remaining[1:])
 		if err != nil {
 			return Command{}, err
 		}
@@ -484,6 +496,108 @@ func setCatalogFlag(resource string, cmd *Command, name, value string) error {
 			return fmt.Errorf("%s does not support --status", resource)
 		}
 		cmd.Status = value
+	default:
+		return fmt.Errorf("unknown %s option: %s", resource, name)
+	}
+	return nil
+}
+
+func parseBilling(resource string, args []string) (Command, error) {
+	if len(args) == 0 {
+		return Command{}, fmt.Errorf("%s requires a subcommand", resource)
+	}
+	cmd := Command{Operation: args[0]}
+	valid := map[string]bool{"list": true, "get": true}
+	if resource == "invoices" {
+		valid["summary"] = true
+		valid["upcoming"] = true
+	}
+	if !valid[cmd.Operation] {
+		return Command{}, fmt.Errorf("unknown %s subcommand: %s", resource, cmd.Operation)
+	}
+	if err := parseBillingFlags(resource, &cmd, args[1:]); err != nil {
+		return Command{}, err
+	}
+	switch cmd.Operation {
+	case "get":
+		if cmd.ID == "" {
+			return Command{}, fmt.Errorf("%s get requires --id", resource)
+		}
+	case "upcoming":
+		if cmd.SubscriptionID == "" {
+			return Command{}, errors.New("invoices upcoming requires --subscription-id")
+		}
+	}
+	return cmd, nil
+}
+
+func parseBillingFlags(resource string, cmd *Command, args []string) error {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "--id", "--created-after", "--created-before", "--customer-id", "--external-customer-id", "--subscription-id", "--status", "--invoice-date-after", "--invoice-date-before":
+			if i+1 >= len(args) {
+				return fmt.Errorf("%s requires a value", arg)
+			}
+			if err := setBillingFlag(resource, cmd, arg, args[i+1]); err != nil {
+				return err
+			}
+			i++
+		default:
+			if name, value, ok := strings.Cut(arg, "="); ok {
+				if err := setBillingFlag(resource, cmd, name, value); err != nil {
+					return err
+				}
+				continue
+			}
+			return fmt.Errorf("unknown %s option: %s", resource, arg)
+		}
+	}
+	return nil
+}
+
+func setBillingFlag(resource string, cmd *Command, name, value string) error {
+	if resource == "credit-notes" {
+		switch name {
+		case "--customer-id", "--external-customer-id", "--subscription-id", "--status", "--invoice-date-after", "--invoice-date-before":
+			return fmt.Errorf("credit-notes does not support %s", name)
+		}
+	}
+	switch name {
+	case "--id":
+		cmd.ID = value
+	case "--customer-id":
+		cmd.CustomerID = value
+	case "--external-customer-id":
+		cmd.ExternalCustomerID = value
+	case "--subscription-id":
+		cmd.SubscriptionID = value
+	case "--status":
+		cmd.Status = value
+	case "--created-after":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --created-after: %w", err)
+		}
+		cmd.CreatedAfter = &t
+	case "--created-before":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --created-before: %w", err)
+		}
+		cmd.CreatedBefore = &t
+	case "--invoice-date-after":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --invoice-date-after: %w", err)
+		}
+		cmd.InvoiceDateAfter = &t
+	case "--invoice-date-before":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --invoice-date-before: %w", err)
+		}
+		cmd.InvoiceDateBefore = &t
 	default:
 		return fmt.Errorf("unknown %s option: %s", resource, name)
 	}

@@ -26,6 +26,12 @@ type OrbClient interface {
 	GetPrice(ctx context.Context, identity ResourceIdentity) (interface{}, error)
 	ListMetrics(ctx context.Context, params CatalogListParams) (Page, error)
 	GetMetric(ctx context.Context, metricID string) (interface{}, error)
+	ListInvoices(ctx context.Context, params InvoiceListParams) (Page, error)
+	GetInvoice(ctx context.Context, invoiceID string) (interface{}, error)
+	ListInvoiceSummary(ctx context.Context, params InvoiceListParams) (Page, error)
+	GetUpcomingInvoice(ctx context.Context, subscriptionID string) (interface{}, error)
+	ListCreditNotes(ctx context.Context, params CatalogListParams) (Page, error)
+	GetCreditNote(ctx context.Context, creditNoteID string) (interface{}, error)
 }
 
 type Page struct {
@@ -117,6 +123,17 @@ type CatalogListParams struct {
 	CreatedAfter  *time.Time
 	CreatedBefore *time.Time
 	Status        string
+}
+
+type InvoiceListParams struct {
+	Limit              int
+	Cursor             string
+	CustomerID         string
+	ExternalCustomerID string
+	SubscriptionID     string
+	Status             string
+	InvoiceDateAfter   *time.Time
+	InvoiceDateBefore  *time.Time
 }
 
 type App struct {
@@ -302,6 +319,63 @@ func (a *App) GetMetric(ctx context.Context, metricID string) string {
 		return output.Error(err, "api_error", meta("metrics", "get"))
 	}
 	return output.Success(res, meta("metrics", "get"))
+}
+
+func (a *App) ListInvoices(ctx context.Context, params InvoiceListParams) string {
+	page, err := a.client.ListInvoices(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("invoices", "list"))
+	}
+	return output.Success(page.Data, pageMeta("invoices", "list", page))
+}
+
+func (a *App) GetInvoice(ctx context.Context, invoiceID string) string {
+	if invoiceID == "" {
+		return output.Error(errors.New("--id required"), "usage_error", meta("invoices", "get"))
+	}
+	res, err := a.client.GetInvoice(ctx, invoiceID)
+	if err != nil {
+		return output.Error(err, "api_error", meta("invoices", "get"))
+	}
+	return output.Success(res, meta("invoices", "get"))
+}
+
+func (a *App) ListInvoiceSummary(ctx context.Context, params InvoiceListParams) string {
+	page, err := a.client.ListInvoiceSummary(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("invoices", "summary"))
+	}
+	return output.Success(page.Data, pageMeta("invoices", "summary", page))
+}
+
+func (a *App) GetUpcomingInvoice(ctx context.Context, subscriptionID string) string {
+	if subscriptionID == "" {
+		return output.Error(errors.New("--subscription-id required"), "usage_error", meta("invoices", "upcoming"))
+	}
+	res, err := a.client.GetUpcomingInvoice(ctx, subscriptionID)
+	if err != nil {
+		return output.Error(err, "api_error", meta("invoices", "upcoming"))
+	}
+	return output.Success(res, meta("invoices", "upcoming"))
+}
+
+func (a *App) ListCreditNotes(ctx context.Context, params CatalogListParams) string {
+	page, err := a.client.ListCreditNotes(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("credit-notes", "list"))
+	}
+	return output.Success(page.Data, pageMeta("credit-notes", "list", page))
+}
+
+func (a *App) GetCreditNote(ctx context.Context, creditNoteID string) string {
+	if creditNoteID == "" {
+		return output.Error(errors.New("--id required"), "usage_error", meta("credit-notes", "get"))
+	}
+	res, err := a.client.GetCreditNote(ctx, creditNoteID)
+	if err != nil {
+		return output.Error(err, "api_error", meta("credit-notes", "get"))
+	}
+	return output.Success(res, meta("credit-notes", "get"))
 }
 
 func requireOneIdentity(identity CustomerIdentity) error {
