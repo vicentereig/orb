@@ -20,6 +20,12 @@ type OrbClient interface {
 	ListSubscriptionUsage(ctx context.Context, subscriptionID string, params SubscriptionUsageParams) (interface{}, error)
 	ListSubscriptionCosts(ctx context.Context, subscriptionID string, params TimeframeParams) (interface{}, error)
 	ListSubscriptionSchedule(ctx context.Context, subscriptionID string, params SubscriptionScheduleParams) (Page, error)
+	ListPlans(ctx context.Context, params CatalogListParams) (Page, error)
+	GetPlan(ctx context.Context, identity ResourceIdentity) (interface{}, error)
+	ListPrices(ctx context.Context, params PageParams) (Page, error)
+	GetPrice(ctx context.Context, identity ResourceIdentity) (interface{}, error)
+	ListMetrics(ctx context.Context, params CatalogListParams) (Page, error)
+	GetMetric(ctx context.Context, metricID string) (interface{}, error)
 }
 
 type Page struct {
@@ -32,6 +38,16 @@ type Page struct {
 type CustomerIdentity struct {
 	ID         string
 	ExternalID string
+}
+
+type ResourceIdentity struct {
+	ID         string
+	ExternalID string
+}
+
+type PageParams struct {
+	Limit  int
+	Cursor string
 }
 
 type CustomerListParams struct {
@@ -93,6 +109,14 @@ type SubscriptionScheduleParams struct {
 	Cursor      string
 	StartAfter  *time.Time
 	StartBefore *time.Time
+}
+
+type CatalogListParams struct {
+	Limit         int
+	Cursor        string
+	CreatedAfter  *time.Time
+	CreatedBefore *time.Time
+	Status        string
 }
 
 type App struct {
@@ -223,7 +247,74 @@ func (a *App) ListSubscriptionSchedule(ctx context.Context, subscriptionID strin
 	return output.Success(page.Data, pageMeta("subscriptions", "schedule", page))
 }
 
+func (a *App) ListPlans(ctx context.Context, params CatalogListParams) string {
+	page, err := a.client.ListPlans(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("plans", "list"))
+	}
+	return output.Success(page.Data, pageMeta("plans", "list", page))
+}
+
+func (a *App) GetPlan(ctx context.Context, identity ResourceIdentity) string {
+	if err := requireOneResourceIdentity(identity); err != nil {
+		return output.Error(err, "usage_error", meta("plans", "get"))
+	}
+	res, err := a.client.GetPlan(ctx, identity)
+	if err != nil {
+		return output.Error(err, "api_error", meta("plans", "get"))
+	}
+	return output.Success(res, meta("plans", "get"))
+}
+
+func (a *App) ListPrices(ctx context.Context, params PageParams) string {
+	page, err := a.client.ListPrices(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("prices", "list"))
+	}
+	return output.Success(page.Data, pageMeta("prices", "list", page))
+}
+
+func (a *App) GetPrice(ctx context.Context, identity ResourceIdentity) string {
+	if err := requireOneResourceIdentity(identity); err != nil {
+		return output.Error(err, "usage_error", meta("prices", "get"))
+	}
+	res, err := a.client.GetPrice(ctx, identity)
+	if err != nil {
+		return output.Error(err, "api_error", meta("prices", "get"))
+	}
+	return output.Success(res, meta("prices", "get"))
+}
+
+func (a *App) ListMetrics(ctx context.Context, params CatalogListParams) string {
+	page, err := a.client.ListMetrics(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("metrics", "list"))
+	}
+	return output.Success(page.Data, pageMeta("metrics", "list", page))
+}
+
+func (a *App) GetMetric(ctx context.Context, metricID string) string {
+	if metricID == "" {
+		return output.Error(errors.New("--id required"), "usage_error", meta("metrics", "get"))
+	}
+	res, err := a.client.GetMetric(ctx, metricID)
+	if err != nil {
+		return output.Error(err, "api_error", meta("metrics", "get"))
+	}
+	return output.Success(res, meta("metrics", "get"))
+}
+
 func requireOneIdentity(identity CustomerIdentity) error {
+	if identity.ID == "" && identity.ExternalID == "" {
+		return errors.New("--id or --external-id required")
+	}
+	if identity.ID != "" && identity.ExternalID != "" {
+		return errors.New("--id and --external-id are mutually exclusive")
+	}
+	return nil
+}
+
+func requireOneResourceIdentity(identity ResourceIdentity) error {
 	if identity.ID == "" && identity.ExternalID == "" {
 		return errors.New("--id or --external-id required")
 	}

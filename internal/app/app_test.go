@@ -64,6 +64,30 @@ func (f fakeClient) ListSubscriptionSchedule(ctx context.Context, subscriptionID
 	return f.pageResponse, f.err
 }
 
+func (f fakeClient) ListPlans(ctx context.Context, params CatalogListParams) (Page, error) {
+	return f.pageResponse, f.err
+}
+
+func (f fakeClient) GetPlan(ctx context.Context, identity ResourceIdentity) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) ListPrices(ctx context.Context, params PageParams) (Page, error) {
+	return f.pageResponse, f.err
+}
+
+func (f fakeClient) GetPrice(ctx context.Context, identity ResourceIdentity) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) ListMetrics(ctx context.Context, params CatalogListParams) (Page, error) {
+	return f.pageResponse, f.err
+}
+
+func (f fakeClient) GetMetric(ctx context.Context, metricID string) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
 func TestVersion(t *testing.T) {
 	result := New(fakeClient{}, "v1.2.3").Version()
 
@@ -329,6 +353,109 @@ func TestSubscriptionScheduleSuccess(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 	if !payload.Success || len(payload.Data) != 1 {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestListPlansSuccess(t *testing.T) {
+	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"id": "plan_123"}}, Count: 1}}, "dev")
+
+	result := app.ListPlans(context.Background(), CatalogListParams{Status: "active"})
+
+	var payload struct {
+		Success bool                `json:"success"`
+		Data    []map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || len(payload.Data) != 1 {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetPlanSuccess(t *testing.T) {
+	app := New(fakeClient{objectResponse: map[string]string{"id": "plan_123"}}, "dev")
+
+	result := app.GetPlan(context.Background(), ResourceIdentity{ID: "plan_123"})
+
+	var payload struct {
+		Success bool              `json:"success"`
+		Data    map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || payload.Data["id"] != "plan_123" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestListPricesSuccess(t *testing.T) {
+	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"id": "price_123"}}, Count: 1}}, "dev")
+
+	result := app.ListPrices(context.Background(), PageParams{Limit: 50})
+
+	var payload struct {
+		Success bool                `json:"success"`
+		Data    []map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || len(payload.Data) != 1 {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetPriceSuccess(t *testing.T) {
+	app := New(fakeClient{objectResponse: map[string]string{"id": "price_123"}}, "dev")
+
+	result := app.GetPrice(context.Background(), ResourceIdentity{ExternalID: "api_calls"})
+
+	var payload struct {
+		Success bool `json:"success"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestListMetricsSuccess(t *testing.T) {
+	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"id": "metric_123"}}, Count: 1}}, "dev")
+
+	result := app.ListMetrics(context.Background(), CatalogListParams{Limit: 20})
+
+	var payload struct {
+		Success bool                `json:"success"`
+		Data    []map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || len(payload.Data) != 1 {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetMetricRequiresID(t *testing.T) {
+	app := New(fakeClient{}, "dev")
+
+	result := app.GetMetric(context.Background(), "")
+
+	var payload struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Type string `json:"type"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if payload.Success || payload.Error.Type != "usage_error" {
 		t.Fatalf("unexpected result: %s", result)
 	}
 }

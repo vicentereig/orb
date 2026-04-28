@@ -230,3 +230,58 @@ func TestParseSubscriptionCommandValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestParseCatalogCommands(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		resource string
+		op       string
+		id       string
+		extID    string
+		status   string
+	}{
+		{name: "plans list", args: []string{"plans", "list", "--status", "active"}, resource: "plans", op: "list", status: "active"},
+		{name: "plans get", args: []string{"plans", "get", "--id", "plan_123"}, resource: "plans", op: "get", id: "plan_123"},
+		{name: "plans get external", args: []string{"plans", "get", "--external-id", "pro"}, resource: "plans", op: "get", extID: "pro"},
+		{name: "prices list", args: []string{"prices", "list", "--limit", "50"}, resource: "prices", op: "list"},
+		{name: "prices get external", args: []string{"prices", "get", "--external-id", "api_calls"}, resource: "prices", op: "get", extID: "api_calls"},
+		{name: "metrics list", args: []string{"metrics", "list", "--created-after", "2026-04-01T00:00:00Z"}, resource: "metrics", op: "list"},
+		{name: "metrics get", args: []string{"metrics", "get", "--id", "metric_123"}, resource: "metrics", op: "get", id: "metric_123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, err := Parse(tt.args)
+			if err != nil {
+				t.Fatalf("Parse returned error: %v", err)
+			}
+			if cmd.Resource != tt.resource || cmd.Operation != tt.op {
+				t.Fatalf("unexpected command: %+v", cmd)
+			}
+			if cmd.ID != tt.id || cmd.ExternalID != tt.extID || cmd.Status != tt.status {
+				t.Fatalf("unexpected command fields: %+v", cmd)
+			}
+		})
+	}
+}
+
+func TestParseCatalogCommandValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "plans requires subcommand", args: []string{"plans"}},
+		{name: "plans get requires id", args: []string{"plans", "get"}},
+		{name: "metrics get rejects external id", args: []string{"metrics", "get", "--external-id", "metric"}},
+		{name: "prices unknown flag", args: []string{"prices", "list", "--status", "active"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := Parse(tt.args); err == nil {
+				t.Fatalf("expected error")
+			}
+		})
+	}
+}

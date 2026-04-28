@@ -55,6 +55,8 @@ func main() {
 		result = executeCustomers(ctx, application, cmd)
 	case "subscriptions":
 		result = executeSubscriptions(ctx, application, cmd)
+	case "plans", "prices", "metrics":
+		result = executeCatalog(ctx, application, cmd)
 	default:
 		result = output.Error(fmt.Errorf("unknown command: %s", cmd.Name), "usage_error", nil)
 	}
@@ -153,4 +155,42 @@ func executeSubscriptions(ctx context.Context, application *app.App, cmd cli.Com
 	default:
 		return output.Error(fmt.Errorf("unknown subscriptions subcommand: %s", cmd.Operation), "usage_error", nil)
 	}
+}
+
+func executeCatalog(ctx context.Context, application *app.App, cmd cli.Command) string {
+	switch cmd.Resource {
+	case "plans":
+		switch cmd.Operation {
+		case "list":
+			return application.ListPlans(ctx, app.CatalogListParams{
+				Limit:         cmd.Globals.Limit,
+				Cursor:        cmd.Globals.Cursor,
+				CreatedAfter:  cmd.CreatedAfter,
+				CreatedBefore: cmd.CreatedBefore,
+				Status:        cmd.Status,
+			})
+		case "get":
+			return application.GetPlan(ctx, app.ResourceIdentity{ID: cmd.ID, ExternalID: cmd.ExternalID})
+		}
+	case "prices":
+		switch cmd.Operation {
+		case "list":
+			return application.ListPrices(ctx, app.PageParams{Limit: cmd.Globals.Limit, Cursor: cmd.Globals.Cursor})
+		case "get":
+			return application.GetPrice(ctx, app.ResourceIdentity{ID: cmd.ID, ExternalID: cmd.ExternalID})
+		}
+	case "metrics":
+		switch cmd.Operation {
+		case "list":
+			return application.ListMetrics(ctx, app.CatalogListParams{
+				Limit:         cmd.Globals.Limit,
+				Cursor:        cmd.Globals.Cursor,
+				CreatedAfter:  cmd.CreatedAfter,
+				CreatedBefore: cmd.CreatedBefore,
+			})
+		case "get":
+			return application.GetMetric(ctx, cmd.ID)
+		}
+	}
+	return output.Error(fmt.Errorf("unknown %s subcommand: %s", cmd.Resource, cmd.Operation), "usage_error", nil)
 }

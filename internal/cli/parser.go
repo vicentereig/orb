@@ -118,6 +118,15 @@ func Parse(args []string) (Command, error) {
 		cmd.Resource = "subscriptions"
 		cmd.Globals = globals
 		return cmd, nil
+	case "plans", "prices", "metrics":
+		cmd, err := parseCatalog(remaining[0], remaining[1:])
+		if err != nil {
+			return Command{}, err
+		}
+		cmd.Name = remaining[0]
+		cmd.Resource = remaining[0]
+		cmd.Globals = globals
+		return cmd, nil
 	default:
 		return Command{}, fmt.Errorf("unknown command: %s", remaining[0])
 	}
@@ -376,6 +385,107 @@ func setSubscriptionFlag(cmd *Command, name, value string) error {
 		cmd.StartBefore = &t
 	default:
 		return fmt.Errorf("unknown subscriptions option: %s", name)
+	}
+	return nil
+}
+
+func parseCatalog(resource string, args []string) (Command, error) {
+	if len(args) == 0 {
+		return Command{}, fmt.Errorf("%s requires a subcommand", resource)
+	}
+	cmd := Command{Operation: args[0]}
+	if cmd.Operation != "list" && cmd.Operation != "get" {
+		return Command{}, fmt.Errorf("unknown %s subcommand: %s", resource, cmd.Operation)
+	}
+	if err := parseCatalogFlags(resource, &cmd, args[1:]); err != nil {
+		return Command{}, err
+	}
+	if cmd.Operation == "get" {
+		switch resource {
+		case "metrics":
+			if cmd.ExternalID != "" {
+				return Command{}, errors.New("metrics get does not support --external-id")
+			}
+			if cmd.ID == "" {
+				return Command{}, errors.New("metrics get requires --id")
+			}
+		default:
+			if err := validateOneIdentity(cmd); err != nil {
+				return Command{}, fmt.Errorf("%s get: %w", resource, err)
+			}
+		}
+	}
+	return cmd, nil
+}
+
+func parseCatalogFlags(resource string, cmd *Command, args []string) error {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "--id", "--external-id", "--created-after", "--created-before":
+			if i+1 >= len(args) {
+				return fmt.Errorf("%s requires a value", arg)
+			}
+			if err := setCatalogFlag(resource, cmd, arg, args[i+1]); err != nil {
+				return err
+			}
+			i++
+		case "--status":
+			if resource != "plans" {
+				return fmt.Errorf("%s does not support --status", resource)
+			}
+			if i+1 >= len(args) {
+				return fmt.Errorf("%s requires a value", arg)
+			}
+			cmd.Status = args[i+1]
+			i++
+		default:
+			if name, value, ok := strings.Cut(arg, "="); ok {
+				if err := setCatalogFlag(resource, cmd, name, value); err != nil {
+					return err
+				}
+				continue
+			}
+			return fmt.Errorf("unknown %s option: %s", resource, arg)
+		}
+	}
+	return nil
+}
+
+func setCatalogFlag(resource string, cmd *Command, name, value string) error {
+	switch name {
+	case "--id":
+		cmd.ID = value
+	case "--external-id":
+		if resource == "metrics" {
+			return errors.New("metrics does not support --external-id")
+		}
+		cmd.ExternalID = value
+	case "--created-after":
+		if resource == "prices" {
+			return errors.New("prices does not support --created-after")
+		}
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --created-after: %w", err)
+		}
+		cmd.CreatedAfter = &t
+	case "--created-before":
+		if resource == "prices" {
+			return errors.New("prices does not support --created-before")
+		}
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --created-before: %w", err)
+		}
+		cmd.CreatedBefore = &t
+	case "--status":
+		if resource != "plans" {
+			return fmt.Errorf("%s does not support --status", resource)
+		}
+		cmd.Status = value
+	default:
+		return fmt.Errorf("unknown %s option: %s", resource, name)
 	}
 	return nil
 }

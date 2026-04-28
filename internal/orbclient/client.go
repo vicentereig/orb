@@ -108,6 +108,48 @@ func (c *Client) ListSubscriptionSchedule(ctx context.Context, subscriptionID st
 	return pageFrom(page), nil
 }
 
+func (c *Client) ListPlans(ctx context.Context, params app.CatalogListParams) (app.Page, error) {
+	page, err := c.orb.Plans.List(ctx, planListParams(params))
+	if err != nil {
+		return app.Page{}, err
+	}
+	return pageFrom(page), nil
+}
+
+func (c *Client) GetPlan(ctx context.Context, identity app.ResourceIdentity) (interface{}, error) {
+	if identity.ExternalID != "" {
+		return c.orb.Plans.ExternalPlanID.Fetch(ctx, identity.ExternalID)
+	}
+	return c.orb.Plans.Fetch(ctx, identity.ID)
+}
+
+func (c *Client) ListPrices(ctx context.Context, params app.PageParams) (app.Page, error) {
+	page, err := c.orb.Prices.List(ctx, priceListParams(params))
+	if err != nil {
+		return app.Page{}, err
+	}
+	return pageFrom(page), nil
+}
+
+func (c *Client) GetPrice(ctx context.Context, identity app.ResourceIdentity) (interface{}, error) {
+	if identity.ExternalID != "" {
+		return c.orb.Prices.ExternalPriceID.Fetch(ctx, identity.ExternalID)
+	}
+	return c.orb.Prices.Fetch(ctx, identity.ID)
+}
+
+func (c *Client) ListMetrics(ctx context.Context, params app.CatalogListParams) (app.Page, error) {
+	page, err := c.orb.Metrics.List(ctx, metricListParams(params))
+	if err != nil {
+		return app.Page{}, err
+	}
+	return pageFrom(page), nil
+}
+
+func (c *Client) GetMetric(ctx context.Context, metricID string) (interface{}, error) {
+	return c.orb.Metrics.Fetch(ctx, metricID)
+}
+
 func customerListParams(params app.CustomerListParams) orbsdk.CustomerListParams {
 	var q orbsdk.CustomerListParams
 	if params.Limit > 0 {
@@ -330,6 +372,54 @@ func subscriptionScheduleParams(params app.SubscriptionScheduleParams) orbsdk.Su
 	}
 	if params.StartBefore != nil {
 		q.StartDateLte = orbsdk.F(*params.StartBefore)
+	}
+	return q
+}
+
+func planListParams(params app.CatalogListParams) orbsdk.PlanListParams {
+	var q orbsdk.PlanListParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	if params.CreatedAfter != nil {
+		q.CreatedAtGte = orbsdk.F(*params.CreatedAfter)
+	}
+	if params.CreatedBefore != nil {
+		q.CreatedAtLte = orbsdk.F(*params.CreatedBefore)
+	}
+	if params.Status != "" {
+		q.Status = orbsdk.F(orbsdk.PlanListParamsStatus(params.Status))
+	}
+	return q
+}
+
+func priceListParams(params app.PageParams) orbsdk.PriceListParams {
+	var q orbsdk.PriceListParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	return q
+}
+
+func metricListParams(params app.CatalogListParams) orbsdk.MetricListParams {
+	var q orbsdk.MetricListParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	if params.CreatedAfter != nil {
+		q.CreatedAtGte = orbsdk.F(*params.CreatedAfter)
+	}
+	if params.CreatedBefore != nil {
+		q.CreatedAtLte = orbsdk.F(*params.CreatedBefore)
 	}
 	return q
 }
