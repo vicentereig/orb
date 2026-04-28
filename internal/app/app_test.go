@@ -44,6 +44,26 @@ func (f fakeClient) ListCustomerCreditLedger(ctx context.Context, identity Custo
 	return f.pageResponse, f.err
 }
 
+func (f fakeClient) ListSubscriptions(ctx context.Context, params SubscriptionListParams) (Page, error) {
+	return f.pageResponse, f.err
+}
+
+func (f fakeClient) GetSubscription(ctx context.Context, subscriptionID string) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) ListSubscriptionUsage(ctx context.Context, subscriptionID string, params SubscriptionUsageParams) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) ListSubscriptionCosts(ctx context.Context, subscriptionID string, params TimeframeParams) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) ListSubscriptionSchedule(ctx context.Context, subscriptionID string, params SubscriptionScheduleParams) (Page, error) {
+	return f.pageResponse, f.err
+}
+
 func TestVersion(t *testing.T) {
 	result := New(fakeClient{}, "v1.2.3").Version()
 
@@ -195,6 +215,111 @@ func TestCustomerCreditLedgerSuccess(t *testing.T) {
 	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"entry": "increment"}}, Count: 1}}, "dev")
 
 	result := app.ListCustomerCreditLedger(context.Background(), CustomerIdentity{ID: "cus_123"}, CustomerCreditLedgerParams{EntryType: "increment"})
+
+	var payload struct {
+		Success bool                `json:"success"`
+		Data    []map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || len(payload.Data) != 1 {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestListSubscriptionsSuccess(t *testing.T) {
+	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"id": "sub_123"}}, Count: 1}}, "dev")
+
+	result := app.ListSubscriptions(context.Background(), SubscriptionListParams{CustomerID: "cus_123", Status: "active"})
+
+	var payload struct {
+		Success bool                   `json:"success"`
+		Data    []map[string]string    `json:"data"`
+		Meta    map[string]interface{} `json:"meta"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || len(payload.Data) != 1 || payload.Meta["operation"] != "list" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetSubscriptionRequiresID(t *testing.T) {
+	app := New(fakeClient{}, "dev")
+
+	result := app.GetSubscription(context.Background(), "")
+
+	var payload struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Type string `json:"type"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if payload.Success || payload.Error.Type != "usage_error" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetSubscriptionSuccess(t *testing.T) {
+	app := New(fakeClient{objectResponse: map[string]string{"id": "sub_123"}}, "dev")
+
+	result := app.GetSubscription(context.Background(), "sub_123")
+
+	var payload struct {
+		Success bool              `json:"success"`
+		Data    map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || payload.Data["id"] != "sub_123" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestSubscriptionUsageSuccess(t *testing.T) {
+	app := New(fakeClient{objectResponse: map[string]string{"usage": "42"}}, "dev")
+
+	result := app.ListSubscriptionUsage(context.Background(), "sub_123", SubscriptionUsageParams{GroupBy: "region"})
+
+	var payload struct {
+		Success bool              `json:"success"`
+		Data    map[string]string `json:"data"`
+		Meta    map[string]string `json:"meta"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || payload.Meta["operation"] != "usage" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestSubscriptionCostsSuccess(t *testing.T) {
+	app := New(fakeClient{objectResponse: map[string]string{"cost": "42"}}, "dev")
+
+	result := app.ListSubscriptionCosts(context.Background(), "sub_123", TimeframeParams{Currency: "USD"})
+
+	var payload struct {
+		Success bool `json:"success"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestSubscriptionScheduleSuccess(t *testing.T) {
+	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"phase": "next"}}, Count: 1}}, "dev")
+
+	result := app.ListSubscriptionSchedule(context.Background(), "sub_123", SubscriptionScheduleParams{Limit: 10})
 
 	var payload struct {
 		Success bool                `json:"success"`

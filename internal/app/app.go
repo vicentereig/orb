@@ -15,6 +15,11 @@ type OrbClient interface {
 	ListCustomerCosts(ctx context.Context, identity CustomerIdentity, params TimeframeParams) (interface{}, error)
 	ListCustomerCredits(ctx context.Context, identity CustomerIdentity, params CustomerCreditsParams) (Page, error)
 	ListCustomerCreditLedger(ctx context.Context, identity CustomerIdentity, params CustomerCreditLedgerParams) (Page, error)
+	ListSubscriptions(ctx context.Context, params SubscriptionListParams) (Page, error)
+	GetSubscription(ctx context.Context, subscriptionID string) (interface{}, error)
+	ListSubscriptionUsage(ctx context.Context, subscriptionID string, params SubscriptionUsageParams) (interface{}, error)
+	ListSubscriptionCosts(ctx context.Context, subscriptionID string, params TimeframeParams) (interface{}, error)
+	ListSubscriptionSchedule(ctx context.Context, subscriptionID string, params SubscriptionScheduleParams) (Page, error)
 }
 
 type Page struct {
@@ -56,6 +61,38 @@ type CustomerCreditLedgerParams struct {
 	Currency    string
 	EntryType   string
 	EntryStatus string
+}
+
+type SubscriptionListParams struct {
+	Limit              int
+	Cursor             string
+	CreatedAfter       *time.Time
+	CreatedBefore      *time.Time
+	CustomerID         string
+	ExternalCustomerID string
+	PlanID             string
+	ExternalPlanID     string
+	Status             string
+}
+
+type SubscriptionUsageParams struct {
+	From                 *time.Time
+	To                   *time.Time
+	BillableMetricID     string
+	FirstDimensionKey    string
+	FirstDimensionValue  string
+	Granularity          string
+	GroupBy              string
+	SecondDimensionKey   string
+	SecondDimensionValue string
+	ViewMode             string
+}
+
+type SubscriptionScheduleParams struct {
+	Limit       int
+	Cursor      string
+	StartAfter  *time.Time
+	StartBefore *time.Time
 }
 
 type App struct {
@@ -132,6 +169,58 @@ func (a *App) ListCustomerCreditLedger(ctx context.Context, identity CustomerIde
 		return output.Error(err, "api_error", meta("customers", "credit-ledger"))
 	}
 	return output.Success(page.Data, pageMeta("customers", "credit-ledger", page))
+}
+
+func (a *App) ListSubscriptions(ctx context.Context, params SubscriptionListParams) string {
+	page, err := a.client.ListSubscriptions(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("subscriptions", "list"))
+	}
+	return output.Success(page.Data, pageMeta("subscriptions", "list", page))
+}
+
+func (a *App) GetSubscription(ctx context.Context, subscriptionID string) string {
+	if subscriptionID == "" {
+		return output.Error(errors.New("--id required"), "usage_error", meta("subscriptions", "get"))
+	}
+	res, err := a.client.GetSubscription(ctx, subscriptionID)
+	if err != nil {
+		return output.Error(err, "api_error", meta("subscriptions", "get"))
+	}
+	return output.Success(res, meta("subscriptions", "get"))
+}
+
+func (a *App) ListSubscriptionUsage(ctx context.Context, subscriptionID string, params SubscriptionUsageParams) string {
+	if subscriptionID == "" {
+		return output.Error(errors.New("--id required"), "usage_error", meta("subscriptions", "usage"))
+	}
+	res, err := a.client.ListSubscriptionUsage(ctx, subscriptionID, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("subscriptions", "usage"))
+	}
+	return output.Success(res, meta("subscriptions", "usage"))
+}
+
+func (a *App) ListSubscriptionCosts(ctx context.Context, subscriptionID string, params TimeframeParams) string {
+	if subscriptionID == "" {
+		return output.Error(errors.New("--id required"), "usage_error", meta("subscriptions", "costs"))
+	}
+	res, err := a.client.ListSubscriptionCosts(ctx, subscriptionID, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("subscriptions", "costs"))
+	}
+	return output.Success(res, meta("subscriptions", "costs"))
+}
+
+func (a *App) ListSubscriptionSchedule(ctx context.Context, subscriptionID string, params SubscriptionScheduleParams) string {
+	if subscriptionID == "" {
+		return output.Error(errors.New("--id required"), "usage_error", meta("subscriptions", "schedule"))
+	}
+	page, err := a.client.ListSubscriptionSchedule(ctx, subscriptionID, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("subscriptions", "schedule"))
+	}
+	return output.Success(page.Data, pageMeta("subscriptions", "schedule", page))
 }
 
 func requireOneIdentity(identity CustomerIdentity) error {

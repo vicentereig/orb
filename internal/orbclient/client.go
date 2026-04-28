@@ -80,6 +80,34 @@ func (c *Client) ListCustomerCreditLedger(ctx context.Context, identity app.Cust
 	return pageFrom(page), nil
 }
 
+func (c *Client) ListSubscriptions(ctx context.Context, params app.SubscriptionListParams) (app.Page, error) {
+	page, err := c.orb.Subscriptions.List(ctx, subscriptionListParams(params))
+	if err != nil {
+		return app.Page{}, err
+	}
+	return pageFrom(page), nil
+}
+
+func (c *Client) GetSubscription(ctx context.Context, subscriptionID string) (interface{}, error) {
+	return c.orb.Subscriptions.Fetch(ctx, subscriptionID)
+}
+
+func (c *Client) ListSubscriptionUsage(ctx context.Context, subscriptionID string, params app.SubscriptionUsageParams) (interface{}, error) {
+	return c.orb.Subscriptions.FetchUsage(ctx, subscriptionID, subscriptionUsageParams(params))
+}
+
+func (c *Client) ListSubscriptionCosts(ctx context.Context, subscriptionID string, params app.TimeframeParams) (interface{}, error) {
+	return c.orb.Subscriptions.FetchCosts(ctx, subscriptionID, subscriptionCostParams(params))
+}
+
+func (c *Client) ListSubscriptionSchedule(ctx context.Context, subscriptionID string, params app.SubscriptionScheduleParams) (app.Page, error) {
+	page, err := c.orb.Subscriptions.FetchSchedule(ctx, subscriptionID, subscriptionScheduleParams(params))
+	if err != nil {
+		return app.Page{}, err
+	}
+	return pageFrom(page), nil
+}
+
 func customerListParams(params app.CustomerListParams) orbsdk.CustomerListParams {
 	var q orbsdk.CustomerListParams
 	if params.Limit > 0 {
@@ -201,6 +229,107 @@ func customerCreditLedgerByExternalIDParams(params app.CustomerCreditLedgerParam
 	}
 	if params.EntryStatus != "" {
 		q.EntryStatus = orbsdk.F(orbsdk.CustomerCreditLedgerListByExternalIDParamsEntryStatus(params.EntryStatus))
+	}
+	return q
+}
+
+func subscriptionListParams(params app.SubscriptionListParams) orbsdk.SubscriptionListParams {
+	var q orbsdk.SubscriptionListParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	if params.CreatedAfter != nil {
+		q.CreatedAtGte = orbsdk.F(*params.CreatedAfter)
+	}
+	if params.CreatedBefore != nil {
+		q.CreatedAtLte = orbsdk.F(*params.CreatedBefore)
+	}
+	if params.CustomerID != "" {
+		q.CustomerID = orbsdk.F([]string{params.CustomerID})
+	}
+	if params.ExternalCustomerID != "" {
+		q.ExternalCustomerID = orbsdk.F([]string{params.ExternalCustomerID})
+	}
+	if params.PlanID != "" {
+		q.PlanID = orbsdk.F(params.PlanID)
+	}
+	if params.ExternalPlanID != "" {
+		q.ExternalPlanID = orbsdk.F(params.ExternalPlanID)
+	}
+	if params.Status != "" {
+		q.Status = orbsdk.F(orbsdk.SubscriptionListParamsStatus(params.Status))
+	}
+	return q
+}
+
+func subscriptionUsageParams(params app.SubscriptionUsageParams) orbsdk.SubscriptionFetchUsageParams {
+	var q orbsdk.SubscriptionFetchUsageParams
+	if params.From != nil {
+		q.TimeframeStart = orbsdk.F(*params.From)
+	}
+	if params.To != nil {
+		q.TimeframeEnd = orbsdk.F(*params.To)
+	}
+	if params.BillableMetricID != "" {
+		q.BillableMetricID = orbsdk.F(params.BillableMetricID)
+	}
+	if params.FirstDimensionKey != "" {
+		q.FirstDimensionKey = orbsdk.F(params.FirstDimensionKey)
+	}
+	if params.FirstDimensionValue != "" {
+		q.FirstDimensionValue = orbsdk.F(params.FirstDimensionValue)
+	}
+	if params.Granularity != "" {
+		q.Granularity = orbsdk.F(orbsdk.SubscriptionFetchUsageParamsGranularity(params.Granularity))
+	}
+	if params.GroupBy != "" {
+		q.GroupBy = orbsdk.F(params.GroupBy)
+	}
+	if params.SecondDimensionKey != "" {
+		q.SecondDimensionKey = orbsdk.F(params.SecondDimensionKey)
+	}
+	if params.SecondDimensionValue != "" {
+		q.SecondDimensionValue = orbsdk.F(params.SecondDimensionValue)
+	}
+	if params.ViewMode != "" {
+		q.ViewMode = orbsdk.F(orbsdk.SubscriptionFetchUsageParamsViewMode(params.ViewMode))
+	}
+	return q
+}
+
+func subscriptionCostParams(params app.TimeframeParams) orbsdk.SubscriptionFetchCostsParams {
+	var q orbsdk.SubscriptionFetchCostsParams
+	if params.Currency != "" {
+		q.Currency = orbsdk.F(params.Currency)
+	}
+	if params.From != nil {
+		q.TimeframeStart = orbsdk.F(*params.From)
+	}
+	if params.To != nil {
+		q.TimeframeEnd = orbsdk.F(*params.To)
+	}
+	if params.ViewMode != "" {
+		q.ViewMode = orbsdk.F(orbsdk.SubscriptionFetchCostsParamsViewMode(params.ViewMode))
+	}
+	return q
+}
+
+func subscriptionScheduleParams(params app.SubscriptionScheduleParams) orbsdk.SubscriptionFetchScheduleParams {
+	var q orbsdk.SubscriptionFetchScheduleParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	if params.StartAfter != nil {
+		q.StartDateGte = orbsdk.F(*params.StartAfter)
+	}
+	if params.StartBefore != nil {
+		q.StartDateLte = orbsdk.F(*params.StartBefore)
 	}
 	return q
 }

@@ -22,21 +22,35 @@ type GlobalOptions struct {
 }
 
 type Command struct {
-	Name             string
-	Resource         string
-	Operation        string
-	Globals          GlobalOptions
-	ID               string
-	ExternalID       string
-	CreatedAfter     *time.Time
-	CreatedBefore    *time.Time
-	From             *time.Time
-	To               *time.Time
-	Currency         string
-	ViewMode         string
-	IncludeAllBlocks bool
-	EntryType        string
-	EntryStatus      string
+	Name                 string
+	Resource             string
+	Operation            string
+	Globals              GlobalOptions
+	ID                   string
+	ExternalID           string
+	CreatedAfter         *time.Time
+	CreatedBefore        *time.Time
+	From                 *time.Time
+	To                   *time.Time
+	Currency             string
+	ViewMode             string
+	IncludeAllBlocks     bool
+	EntryType            string
+	EntryStatus          string
+	CustomerID           string
+	ExternalCustomerID   string
+	PlanID               string
+	ExternalPlanID       string
+	Status               string
+	Granularity          string
+	GroupBy              string
+	BillableMetricID     string
+	FirstDimensionKey    string
+	FirstDimensionValue  string
+	SecondDimensionKey   string
+	SecondDimensionValue string
+	StartAfter           *time.Time
+	StartBefore          *time.Time
 }
 
 func Parse(args []string) (Command, error) {
@@ -93,6 +107,15 @@ func Parse(args []string) (Command, error) {
 		}
 		cmd.Name = "customers"
 		cmd.Resource = "customers"
+		cmd.Globals = globals
+		return cmd, nil
+	case "subscriptions":
+		cmd, err := parseSubscriptions(remaining[1:])
+		if err != nil {
+			return Command{}, err
+		}
+		cmd.Name = "subscriptions"
+		cmd.Resource = "subscriptions"
 		cmd.Globals = globals
 		return cmd, nil
 	default:
@@ -219,6 +242,140 @@ func validateOneIdentity(cmd Command) error {
 	}
 	if cmd.ID != "" && cmd.ExternalID != "" {
 		return fmt.Errorf("customers %s accepts only one of --id or --external-id", cmd.Operation)
+	}
+	return nil
+}
+
+func parseSubscriptions(args []string) (Command, error) {
+	if len(args) == 0 {
+		return Command{}, errors.New("subscriptions requires a subcommand")
+	}
+	cmd := Command{Operation: args[0]}
+	if cmd.Operation != "list" && cmd.Operation != "get" && cmd.Operation != "usage" && cmd.Operation != "costs" && cmd.Operation != "schedule" {
+		return Command{}, fmt.Errorf("unknown subscriptions subcommand: %s", cmd.Operation)
+	}
+	if err := parseSubscriptionFlags(&cmd, args[1:]); err != nil {
+		return Command{}, err
+	}
+	switch cmd.Operation {
+	case "list":
+		return cmd, nil
+	case "get", "schedule":
+		if cmd.ID == "" {
+			return Command{}, fmt.Errorf("subscriptions %s requires --id", cmd.Operation)
+		}
+	case "usage", "costs":
+		if cmd.ID == "" {
+			return Command{}, fmt.Errorf("subscriptions %s requires --id", cmd.Operation)
+		}
+		if cmd.From == nil {
+			return Command{}, fmt.Errorf("subscriptions %s requires --from", cmd.Operation)
+		}
+		if cmd.To == nil {
+			return Command{}, fmt.Errorf("subscriptions %s requires --to", cmd.Operation)
+		}
+		if !cmd.From.Before(*cmd.To) {
+			return Command{}, errors.New("--from must be before --to")
+		}
+	}
+	return cmd, nil
+}
+
+func parseSubscriptionFlags(cmd *Command, args []string) error {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "--id", "--customer-id", "--external-customer-id", "--plan-id", "--external-plan-id", "--status", "--created-after", "--created-before", "--from", "--to", "--currency", "--view-mode", "--granularity", "--group-by", "--billable-metric-id", "--first-dimension-key", "--first-dimension-value", "--second-dimension-key", "--second-dimension-value", "--start-after", "--start-before":
+			if i+1 >= len(args) {
+				return fmt.Errorf("%s requires a value", arg)
+			}
+			if err := setSubscriptionFlag(cmd, arg, args[i+1]); err != nil {
+				return err
+			}
+			i++
+		default:
+			if name, value, ok := strings.Cut(arg, "="); ok {
+				if err := setSubscriptionFlag(cmd, name, value); err != nil {
+					return err
+				}
+				continue
+			}
+			return fmt.Errorf("unknown subscriptions option: %s", arg)
+		}
+	}
+	return nil
+}
+
+func setSubscriptionFlag(cmd *Command, name, value string) error {
+	switch name {
+	case "--id":
+		cmd.ID = value
+	case "--customer-id":
+		cmd.CustomerID = value
+	case "--external-customer-id":
+		cmd.ExternalCustomerID = value
+	case "--plan-id":
+		cmd.PlanID = value
+	case "--external-plan-id":
+		cmd.ExternalPlanID = value
+	case "--status":
+		cmd.Status = value
+	case "--currency":
+		cmd.Currency = value
+	case "--view-mode":
+		cmd.ViewMode = value
+	case "--granularity":
+		cmd.Granularity = value
+	case "--group-by":
+		cmd.GroupBy = value
+	case "--billable-metric-id":
+		cmd.BillableMetricID = value
+	case "--first-dimension-key":
+		cmd.FirstDimensionKey = value
+	case "--first-dimension-value":
+		cmd.FirstDimensionValue = value
+	case "--second-dimension-key":
+		cmd.SecondDimensionKey = value
+	case "--second-dimension-value":
+		cmd.SecondDimensionValue = value
+	case "--created-after":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --created-after: %w", err)
+		}
+		cmd.CreatedAfter = &t
+	case "--created-before":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --created-before: %w", err)
+		}
+		cmd.CreatedBefore = &t
+	case "--from":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --from: %w", err)
+		}
+		cmd.From = &t
+	case "--to":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --to: %w", err)
+		}
+		cmd.To = &t
+	case "--start-after":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --start-after: %w", err)
+		}
+		cmd.StartAfter = &t
+	case "--start-before":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --start-before: %w", err)
+		}
+		cmd.StartBefore = &t
+	default:
+		return fmt.Errorf("unknown subscriptions option: %s", name)
 	}
 	return nil
 }

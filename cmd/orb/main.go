@@ -53,6 +53,8 @@ func main() {
 		result = application.Ping(ctx)
 	case "customers":
 		result = executeCustomers(ctx, application, cmd)
+	case "subscriptions":
+		result = executeSubscriptions(ctx, application, cmd)
 	default:
 		result = output.Error(fmt.Errorf("unknown command: %s", cmd.Name), "usage_error", nil)
 	}
@@ -102,5 +104,53 @@ func executeCustomers(ctx context.Context, application *app.App, cmd cli.Command
 		})
 	default:
 		return output.Error(fmt.Errorf("unknown customers subcommand: %s", cmd.Operation), "usage_error", nil)
+	}
+}
+
+func executeSubscriptions(ctx context.Context, application *app.App, cmd cli.Command) string {
+	switch cmd.Operation {
+	case "list":
+		return application.ListSubscriptions(ctx, app.SubscriptionListParams{
+			Limit:              cmd.Globals.Limit,
+			Cursor:             cmd.Globals.Cursor,
+			CreatedAfter:       cmd.CreatedAfter,
+			CreatedBefore:      cmd.CreatedBefore,
+			CustomerID:         cmd.CustomerID,
+			ExternalCustomerID: cmd.ExternalCustomerID,
+			PlanID:             cmd.PlanID,
+			ExternalPlanID:     cmd.ExternalPlanID,
+			Status:             cmd.Status,
+		})
+	case "get":
+		return application.GetSubscription(ctx, cmd.ID)
+	case "usage":
+		return application.ListSubscriptionUsage(ctx, cmd.ID, app.SubscriptionUsageParams{
+			From:                 cmd.From,
+			To:                   cmd.To,
+			BillableMetricID:     cmd.BillableMetricID,
+			FirstDimensionKey:    cmd.FirstDimensionKey,
+			FirstDimensionValue:  cmd.FirstDimensionValue,
+			Granularity:          cmd.Granularity,
+			GroupBy:              cmd.GroupBy,
+			SecondDimensionKey:   cmd.SecondDimensionKey,
+			SecondDimensionValue: cmd.SecondDimensionValue,
+			ViewMode:             cmd.ViewMode,
+		})
+	case "costs":
+		return application.ListSubscriptionCosts(ctx, cmd.ID, app.TimeframeParams{
+			From:     cmd.From,
+			To:       cmd.To,
+			Currency: cmd.Currency,
+			ViewMode: cmd.ViewMode,
+		})
+	case "schedule":
+		return application.ListSubscriptionSchedule(ctx, cmd.ID, app.SubscriptionScheduleParams{
+			Limit:       cmd.Globals.Limit,
+			Cursor:      cmd.Globals.Cursor,
+			StartAfter:  cmd.StartAfter,
+			StartBefore: cmd.StartBefore,
+		})
+	default:
+		return output.Error(fmt.Errorf("unknown subscriptions subcommand: %s", cmd.Operation), "usage_error", nil)
 	}
 }

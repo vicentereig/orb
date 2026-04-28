@@ -147,3 +147,86 @@ func TestParseCustomerCommandValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSubscriptionCommands(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		wantOp     string
+		wantID     string
+		wantStatus string
+	}{
+		{
+			name:       "subscriptions list",
+			args:       []string{"subscriptions", "list", "--customer-id", "cus_123", "--external-plan-id", "pro", "--status", "active"},
+			wantOp:     "list",
+			wantStatus: "active",
+		},
+		{
+			name:   "subscriptions get",
+			args:   []string{"subscriptions", "get", "--id", "sub_123"},
+			wantOp: "get",
+			wantID: "sub_123",
+		},
+		{
+			name:   "subscriptions usage",
+			args:   []string{"subscriptions", "usage", "--id", "sub_123", "--from", "2026-04-01T00:00:00Z", "--to", "2026-05-01T00:00:00Z", "--granularity", "day", "--group-by", "region", "--billable-metric-id", "bm_123"},
+			wantOp: "usage",
+			wantID: "sub_123",
+		},
+		{
+			name:   "subscriptions costs",
+			args:   []string{"subscriptions", "costs", "--id", "sub_123", "--from", "2026-04-01T00:00:00Z", "--to", "2026-05-01T00:00:00Z", "--currency", "USD", "--view-mode", "cumulative"},
+			wantOp: "costs",
+			wantID: "sub_123",
+		},
+		{
+			name:   "subscriptions schedule",
+			args:   []string{"subscriptions", "schedule", "--id", "sub_123", "--start-after", "2026-04-01T00:00:00Z"},
+			wantOp: "schedule",
+			wantID: "sub_123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, err := Parse(tt.args)
+			if err != nil {
+				t.Fatalf("Parse returned error: %v", err)
+			}
+			if cmd.Resource != "subscriptions" || cmd.Operation != tt.wantOp {
+				t.Fatalf("unexpected command: %+v", cmd)
+			}
+			if cmd.ID != tt.wantID {
+				t.Fatalf("unexpected id: %+v", cmd)
+			}
+			if cmd.Status != tt.wantStatus {
+				t.Fatalf("unexpected status: %+v", cmd)
+			}
+		})
+	}
+}
+
+func TestParseSubscriptionCommandValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "subscriptions requires subcommand", args: []string{"subscriptions"}},
+		{name: "get requires id", args: []string{"subscriptions", "get"}},
+		{name: "usage requires id", args: []string{"subscriptions", "usage", "--from", "2026-04-01T00:00:00Z", "--to", "2026-05-01T00:00:00Z"}},
+		{name: "usage requires from", args: []string{"subscriptions", "usage", "--id", "sub_123", "--to", "2026-05-01T00:00:00Z"}},
+		{name: "usage requires to", args: []string{"subscriptions", "usage", "--id", "sub_123", "--from", "2026-04-01T00:00:00Z"}},
+		{name: "costs rejects bad time range", args: []string{"subscriptions", "costs", "--id", "sub_123", "--from", "2026-05-01T00:00:00Z", "--to", "2026-04-01T00:00:00Z"}},
+		{name: "schedule requires id", args: []string{"subscriptions", "schedule"}},
+		{name: "unknown flag", args: []string{"subscriptions", "list", "--wat"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := Parse(tt.args); err == nil {
+				t.Fatalf("expected error")
+			}
+		})
+	}
+}
