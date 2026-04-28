@@ -32,6 +32,12 @@ type OrbClient interface {
 	GetUpcomingInvoice(ctx context.Context, subscriptionID string) (interface{}, error)
 	ListCreditNotes(ctx context.Context, params CatalogListParams) (Page, error)
 	GetCreditNote(ctx context.Context, creditNoteID string) (interface{}, error)
+	SearchEvents(ctx context.Context, params EventSearchParams) (interface{}, error)
+	ListEventVolume(ctx context.Context, params EventVolumeParams) (interface{}, error)
+	ListEventBackfills(ctx context.Context, params PageParams) (Page, error)
+	GetEventBackfill(ctx context.Context, backfillID string) (interface{}, error)
+	ListAlerts(ctx context.Context, params AlertListParams) (Page, error)
+	GetAlert(ctx context.Context, alertID string) (interface{}, error)
 }
 
 type Page struct {
@@ -134,6 +140,29 @@ type InvoiceListParams struct {
 	Status             string
 	InvoiceDateAfter   *time.Time
 	InvoiceDateBefore  *time.Time
+}
+
+type EventSearchParams struct {
+	IDs  []string
+	From *time.Time
+	To   *time.Time
+}
+
+type EventVolumeParams struct {
+	Limit  int
+	Cursor string
+	From   *time.Time
+	To     *time.Time
+}
+
+type AlertListParams struct {
+	Limit              int
+	Cursor             string
+	CreatedAfter       *time.Time
+	CreatedBefore      *time.Time
+	CustomerID         string
+	ExternalCustomerID string
+	SubscriptionID     string
 }
 
 type App struct {
@@ -376,6 +405,66 @@ func (a *App) GetCreditNote(ctx context.Context, creditNoteID string) string {
 		return output.Error(err, "api_error", meta("credit-notes", "get"))
 	}
 	return output.Success(res, meta("credit-notes", "get"))
+}
+
+func (a *App) SearchEvents(ctx context.Context, params EventSearchParams) string {
+	if len(params.IDs) == 0 {
+		return output.Error(errors.New("--id or --ids-file required"), "usage_error", meta("events", "search"))
+	}
+	res, err := a.client.SearchEvents(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("events", "search"))
+	}
+	return output.Success(res, meta("events", "search"))
+}
+
+func (a *App) ListEventVolume(ctx context.Context, params EventVolumeParams) string {
+	if params.From == nil {
+		return output.Error(errors.New("--from required"), "usage_error", meta("events", "volume"))
+	}
+	res, err := a.client.ListEventVolume(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("events", "volume"))
+	}
+	return output.Success(res, meta("events", "volume"))
+}
+
+func (a *App) ListEventBackfills(ctx context.Context, params PageParams) string {
+	page, err := a.client.ListEventBackfills(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("events", "backfills-list"))
+	}
+	return output.Success(page.Data, pageMeta("events", "backfills-list", page))
+}
+
+func (a *App) GetEventBackfill(ctx context.Context, backfillID string) string {
+	if backfillID == "" {
+		return output.Error(errors.New("--id required"), "usage_error", meta("events", "backfills-get"))
+	}
+	res, err := a.client.GetEventBackfill(ctx, backfillID)
+	if err != nil {
+		return output.Error(err, "api_error", meta("events", "backfills-get"))
+	}
+	return output.Success(res, meta("events", "backfills-get"))
+}
+
+func (a *App) ListAlerts(ctx context.Context, params AlertListParams) string {
+	page, err := a.client.ListAlerts(ctx, params)
+	if err != nil {
+		return output.Error(err, "api_error", meta("alerts", "list"))
+	}
+	return output.Success(page.Data, pageMeta("alerts", "list", page))
+}
+
+func (a *App) GetAlert(ctx context.Context, alertID string) string {
+	if alertID == "" {
+		return output.Error(errors.New("--id required"), "usage_error", meta("alerts", "get"))
+	}
+	res, err := a.client.GetAlert(ctx, alertID)
+	if err != nil {
+		return output.Error(err, "api_error", meta("alerts", "get"))
+	}
+	return output.Success(res, meta("alerts", "get"))
 }
 
 func requireOneIdentity(identity CustomerIdentity) error {

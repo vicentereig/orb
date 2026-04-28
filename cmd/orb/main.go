@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/vicentereig/orb/internal/app"
 	"github.com/vicentereig/orb/internal/cli"
@@ -59,6 +60,10 @@ func main() {
 		result = executeCatalog(ctx, application, cmd)
 	case "invoices", "credit-notes":
 		result = executeBilling(ctx, application, cmd)
+	case "events":
+		result = executeEvents(ctx, application, cmd)
+	case "alerts":
+		result = executeAlerts(ctx, application, cmd)
 	default:
 		result = output.Error(fmt.Errorf("unknown command: %s", cmd.Name), "usage_error", nil)
 	}
@@ -234,4 +239,72 @@ func executeBilling(ctx context.Context, application *app.App, cmd cli.Command) 
 		}
 	}
 	return output.Error(fmt.Errorf("unknown %s subcommand: %s", cmd.Resource, cmd.Operation), "usage_error", nil)
+}
+
+func executeEvents(ctx context.Context, application *app.App, cmd cli.Command) string {
+	switch cmd.Operation {
+	case "search":
+		ids, err := eventIDs(cmd)
+		if err != nil {
+			return output.Error(err, "usage_error", map[string]interface{}{"resource": "events", "operation": "search"})
+		}
+		return application.SearchEvents(ctx, app.EventSearchParams{
+			IDs:  ids,
+			From: cmd.From,
+			To:   cmd.To,
+		})
+	case "volume":
+		return application.ListEventVolume(ctx, app.EventVolumeParams{
+			Limit:  cmd.Globals.Limit,
+			Cursor: cmd.Globals.Cursor,
+			From:   cmd.From,
+			To:     cmd.To,
+		})
+	case "backfills-list":
+		return application.ListEventBackfills(ctx, app.PageParams{Limit: cmd.Globals.Limit, Cursor: cmd.Globals.Cursor})
+	case "backfills-get":
+		return application.GetEventBackfill(ctx, cmd.ID)
+	default:
+		return output.Error(fmt.Errorf("unknown events subcommand: %s", cmd.Operation), "usage_error", nil)
+	}
+}
+
+func eventIDs(cmd cli.Command) ([]string, error) {
+	ids := append([]string{}, cmd.IDs...)
+	if cmd.IDsFile == "" {
+		return ids, nil
+	}
+
+	content, err := os.ReadFile(cmd.IDsFile)
+	if err != nil {
+		return nil, fmt.Errorf("read --ids-file: %w", err)
+	}
+	for _, field := range strings.FieldsFunc(string(content), func(r rune) bool {
+		return r == '\n' || r == '\r' || r == ','
+	}) {
+		id := strings.TrimSpace(field)
+		if id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
+}
+
+func executeAlerts(ctx context.Context, application *app.App, cmd cli.Command) string {
+	switch cmd.Operation {
+	case "list":
+		return application.ListAlerts(ctx, app.AlertListParams{
+			Limit:              cmd.Globals.Limit,
+			Cursor:             cmd.Globals.Cursor,
+			CreatedAfter:       cmd.CreatedAfter,
+			CreatedBefore:      cmd.CreatedBefore,
+			CustomerID:         cmd.CustomerID,
+			ExternalCustomerID: cmd.ExternalCustomerID,
+			SubscriptionID:     cmd.SubscriptionID,
+		})
+	case "get":
+		return application.GetAlert(ctx, cmd.ID)
+	default:
+		return output.Error(fmt.Errorf("unknown alerts subcommand: %s", cmd.Operation), "usage_error", nil)
+	}
 }

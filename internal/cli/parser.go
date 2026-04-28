@@ -27,6 +27,8 @@ type Command struct {
 	Operation            string
 	Globals              GlobalOptions
 	ID                   string
+	IDs                  []string
+	IDsFile              string
 	ExternalID           string
 	CreatedAfter         *time.Time
 	CreatedBefore        *time.Time
@@ -137,6 +139,24 @@ func Parse(args []string) (Command, error) {
 		}
 		cmd.Name = remaining[0]
 		cmd.Resource = remaining[0]
+		cmd.Globals = globals
+		return cmd, nil
+	case "events":
+		cmd, err := parseEvents(remaining[1:])
+		if err != nil {
+			return Command{}, err
+		}
+		cmd.Name = "events"
+		cmd.Resource = "events"
+		cmd.Globals = globals
+		return cmd, nil
+	case "alerts":
+		cmd, err := parseAlerts(remaining[1:])
+		if err != nil {
+			return Command{}, err
+		}
+		cmd.Name = "alerts"
+		cmd.Resource = "alerts"
 		cmd.Globals = globals
 		return cmd, nil
 	default:
@@ -600,6 +620,176 @@ func setBillingFlag(resource string, cmd *Command, name, value string) error {
 		cmd.InvoiceDateBefore = &t
 	default:
 		return fmt.Errorf("unknown %s option: %s", resource, name)
+	}
+	return nil
+}
+
+func parseEvents(args []string) (Command, error) {
+	if len(args) == 0 {
+		return Command{}, errors.New("events requires a subcommand")
+	}
+	if args[0] == "backfills" {
+		return parseEventBackfills(args[1:])
+	}
+	cmd := Command{Operation: args[0]}
+	if cmd.Operation != "search" && cmd.Operation != "volume" {
+		return Command{}, fmt.Errorf("unknown events subcommand: %s", cmd.Operation)
+	}
+	if err := parseEventFlags(&cmd, args[1:]); err != nil {
+		return Command{}, err
+	}
+	switch cmd.Operation {
+	case "search":
+		if len(cmd.IDs) == 0 && cmd.IDsFile == "" {
+			return Command{}, errors.New("events search requires --id or --ids-file")
+		}
+	case "volume":
+		if cmd.From == nil {
+			return Command{}, errors.New("events volume requires --from")
+		}
+	}
+	if cmd.From != nil && cmd.To != nil && !cmd.From.Before(*cmd.To) {
+		return Command{}, errors.New("--from must be before --to")
+	}
+	return cmd, nil
+}
+
+func parseEventBackfills(args []string) (Command, error) {
+	if len(args) == 0 {
+		return Command{}, errors.New("events backfills requires a subcommand")
+	}
+	cmd := Command{Operation: "backfills-" + args[0]}
+	if cmd.Operation != "backfills-list" && cmd.Operation != "backfills-get" {
+		return Command{}, fmt.Errorf("unknown events backfills subcommand: %s", args[0])
+	}
+	if err := parseEventFlags(&cmd, args[1:]); err != nil {
+		return Command{}, err
+	}
+	if cmd.Operation == "backfills-get" && cmd.ID == "" {
+		return Command{}, errors.New("events backfills get requires --id")
+	}
+	return cmd, nil
+}
+
+func parseEventFlags(cmd *Command, args []string) error {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "--id", "--ids-file", "--from", "--to":
+			if i+1 >= len(args) {
+				return fmt.Errorf("%s requires a value", arg)
+			}
+			if err := setEventFlag(cmd, arg, args[i+1]); err != nil {
+				return err
+			}
+			i++
+		default:
+			if name, value, ok := strings.Cut(arg, "="); ok {
+				if err := setEventFlag(cmd, name, value); err != nil {
+					return err
+				}
+				continue
+			}
+			return fmt.Errorf("unknown events option: %s", arg)
+		}
+	}
+	return nil
+}
+
+func setEventFlag(cmd *Command, name, value string) error {
+	switch name {
+	case "--id":
+		if cmd.Operation == "search" {
+			cmd.IDs = append(cmd.IDs, value)
+		} else {
+			cmd.ID = value
+		}
+	case "--ids-file":
+		cmd.IDsFile = value
+	case "--from":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --from: %w", err)
+		}
+		cmd.From = &t
+	case "--to":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --to: %w", err)
+		}
+		cmd.To = &t
+	default:
+		return fmt.Errorf("unknown events option: %s", name)
+	}
+	return nil
+}
+
+func parseAlerts(args []string) (Command, error) {
+	if len(args) == 0 {
+		return Command{}, errors.New("alerts requires a subcommand")
+	}
+	cmd := Command{Operation: args[0]}
+	if cmd.Operation != "list" && cmd.Operation != "get" {
+		return Command{}, fmt.Errorf("unknown alerts subcommand: %s", cmd.Operation)
+	}
+	if err := parseAlertFlags(&cmd, args[1:]); err != nil {
+		return Command{}, err
+	}
+	if cmd.Operation == "get" && cmd.ID == "" {
+		return Command{}, errors.New("alerts get requires --id")
+	}
+	return cmd, nil
+}
+
+func parseAlertFlags(cmd *Command, args []string) error {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "--id", "--customer-id", "--external-customer-id", "--subscription-id", "--created-after", "--created-before":
+			if i+1 >= len(args) {
+				return fmt.Errorf("%s requires a value", arg)
+			}
+			if err := setAlertFlag(cmd, arg, args[i+1]); err != nil {
+				return err
+			}
+			i++
+		default:
+			if name, value, ok := strings.Cut(arg, "="); ok {
+				if err := setAlertFlag(cmd, name, value); err != nil {
+					return err
+				}
+				continue
+			}
+			return fmt.Errorf("unknown alerts option: %s", arg)
+		}
+	}
+	return nil
+}
+
+func setAlertFlag(cmd *Command, name, value string) error {
+	switch name {
+	case "--id":
+		cmd.ID = value
+	case "--customer-id":
+		cmd.CustomerID = value
+	case "--external-customer-id":
+		cmd.ExternalCustomerID = value
+	case "--subscription-id":
+		cmd.SubscriptionID = value
+	case "--created-after":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --created-after: %w", err)
+		}
+		cmd.CreatedAfter = &t
+	case "--created-before":
+		t, err := parseTime(value)
+		if err != nil {
+			return fmt.Errorf("invalid --created-before: %w", err)
+		}
+		cmd.CreatedBefore = &t
+	default:
+		return fmt.Errorf("unknown alerts option: %s", name)
 	}
 	return nil
 }

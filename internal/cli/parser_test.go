@@ -336,3 +336,53 @@ func TestParseBillingCommandValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestParseEventAndAlertCommands(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		resource string
+		op       string
+		id       string
+		ids      int
+	}{
+		{name: "events search", args: []string{"events", "search", "--id", "evt_1", "--id", "evt_2", "--from", "2026-04-01T00:00:00Z"}, resource: "events", op: "search", ids: 2},
+		{name: "events volume", args: []string{"events", "volume", "--from", "2026-04-01T00:00:00Z", "--to", "2026-04-02T00:00:00Z"}, resource: "events", op: "volume"},
+		{name: "events backfills list", args: []string{"events", "backfills", "list"}, resource: "events", op: "backfills-list"},
+		{name: "events backfills get", args: []string{"events", "backfills", "get", "--id", "bf_123"}, resource: "events", op: "backfills-get", id: "bf_123"},
+		{name: "alerts list", args: []string{"alerts", "list", "--customer-id", "cus_123"}, resource: "alerts", op: "list"},
+		{name: "alerts get", args: []string{"alerts", "get", "--id", "alert_123"}, resource: "alerts", op: "get", id: "alert_123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, err := Parse(tt.args)
+			if err != nil {
+				t.Fatalf("Parse returned error: %v", err)
+			}
+			if cmd.Resource != tt.resource || cmd.Operation != tt.op || cmd.ID != tt.id || len(cmd.IDs) != tt.ids {
+				t.Fatalf("unexpected command: %+v", cmd)
+			}
+		})
+	}
+}
+
+func TestParseEventAndAlertValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "events search requires id or ids file", args: []string{"events", "search"}},
+		{name: "events volume requires from", args: []string{"events", "volume"}},
+		{name: "backfills get requires id", args: []string{"events", "backfills", "get"}},
+		{name: "alerts get requires id", args: []string{"alerts", "get"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := Parse(tt.args); err == nil {
+				t.Fatalf("expected error")
+			}
+		})
+	}
+}

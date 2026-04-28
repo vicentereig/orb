@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 )
 
 type fakeClient struct {
@@ -109,6 +110,30 @@ func (f fakeClient) ListCreditNotes(ctx context.Context, params CatalogListParam
 }
 
 func (f fakeClient) GetCreditNote(ctx context.Context, creditNoteID string) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) SearchEvents(ctx context.Context, params EventSearchParams) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) ListEventVolume(ctx context.Context, params EventVolumeParams) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) ListEventBackfills(ctx context.Context, params PageParams) (Page, error) {
+	return f.pageResponse, f.err
+}
+
+func (f fakeClient) GetEventBackfill(ctx context.Context, backfillID string) (interface{}, error) {
+	return f.objectResponse, f.err
+}
+
+func (f fakeClient) ListAlerts(ctx context.Context, params AlertListParams) (Page, error) {
+	return f.pageResponse, f.err
+}
+
+func (f fakeClient) GetAlert(ctx context.Context, alertID string) (interface{}, error) {
 	return f.objectResponse, f.err
 }
 
@@ -566,6 +591,91 @@ func TestListCreditNotesSuccess(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 	if !payload.Success || len(payload.Data) != 1 {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestSearchEventsSuccess(t *testing.T) {
+	app := New(fakeClient{objectResponse: map[string]interface{}{"data": []string{"evt_1"}}}, "dev")
+
+	result := app.SearchEvents(context.Background(), EventSearchParams{IDs: []string{"evt_1"}})
+
+	var payload struct {
+		Success bool              `json:"success"`
+		Meta    map[string]string `json:"meta"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || payload.Meta["operation"] != "search" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestSearchEventsRequiresIDs(t *testing.T) {
+	app := New(fakeClient{}, "dev")
+
+	result := app.SearchEvents(context.Background(), EventSearchParams{})
+
+	var payload struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Type string `json:"type"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if payload.Success || payload.Error.Type != "usage_error" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestEventVolumeSuccess(t *testing.T) {
+	app := New(fakeClient{objectResponse: map[string]string{"volume": "42"}}, "dev")
+	from := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+
+	result := app.ListEventVolume(context.Background(), EventVolumeParams{From: &from})
+
+	var payload struct {
+		Success bool `json:"success"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestEventBackfillsSuccess(t *testing.T) {
+	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"id": "bf_123"}}, Count: 1}}, "dev")
+
+	result := app.ListEventBackfills(context.Background(), PageParams{Limit: 20})
+
+	var payload struct {
+		Success bool `json:"success"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestAlertsSuccess(t *testing.T) {
+	app := New(fakeClient{pageResponse: Page{Data: []map[string]string{{"id": "alert_123"}}, Count: 1}}, "dev")
+
+	result := app.ListAlerts(context.Background(), AlertListParams{CustomerID: "cus_123"})
+
+	var payload struct {
+		Success bool `json:"success"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success {
 		t.Fatalf("unexpected result: %s", result)
 	}
 }

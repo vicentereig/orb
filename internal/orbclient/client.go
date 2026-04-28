@@ -186,6 +186,38 @@ func (c *Client) GetCreditNote(ctx context.Context, creditNoteID string) (interf
 	return c.orb.CreditNotes.Fetch(ctx, creditNoteID)
 }
 
+func (c *Client) SearchEvents(ctx context.Context, params app.EventSearchParams) (interface{}, error) {
+	return c.orb.Events.Search(ctx, eventSearchParams(params))
+}
+
+func (c *Client) ListEventVolume(ctx context.Context, params app.EventVolumeParams) (interface{}, error) {
+	return c.orb.Events.Volume.List(ctx, eventVolumeParams(params))
+}
+
+func (c *Client) ListEventBackfills(ctx context.Context, params app.PageParams) (app.Page, error) {
+	page, err := c.orb.Events.Backfills.List(ctx, eventBackfillListParams(params))
+	if err != nil {
+		return app.Page{}, err
+	}
+	return pageFrom(page), nil
+}
+
+func (c *Client) GetEventBackfill(ctx context.Context, backfillID string) (interface{}, error) {
+	return c.orb.Events.Backfills.Fetch(ctx, backfillID)
+}
+
+func (c *Client) ListAlerts(ctx context.Context, params app.AlertListParams) (app.Page, error) {
+	page, err := c.orb.Alerts.List(ctx, alertListParams(params))
+	if err != nil {
+		return app.Page{}, err
+	}
+	return pageFrom(page), nil
+}
+
+func (c *Client) GetAlert(ctx context.Context, alertID string) (interface{}, error) {
+	return c.orb.Alerts.Get(ctx, alertID)
+}
+
 func customerListParams(params app.CustomerListParams) orbsdk.CustomerListParams {
 	var q orbsdk.CustomerListParams
 	if params.Limit > 0 {
@@ -531,6 +563,74 @@ func creditNoteListParams(params app.CatalogListParams) orbsdk.CreditNoteListPar
 	}
 	if params.CreatedBefore != nil {
 		q.CreatedAtLte = orbsdk.F(*params.CreatedBefore)
+	}
+	return q
+}
+
+func eventSearchParams(params app.EventSearchParams) orbsdk.EventSearchParams {
+	var q orbsdk.EventSearchParams
+	if len(params.IDs) > 0 {
+		q.EventIDs = orbsdk.F(params.IDs)
+	}
+	if params.From != nil {
+		q.TimeframeStart = orbsdk.F(*params.From)
+	}
+	if params.To != nil {
+		q.TimeframeEnd = orbsdk.F(*params.To)
+	}
+	return q
+}
+
+func eventVolumeParams(params app.EventVolumeParams) orbsdk.EventVolumeListParams {
+	var q orbsdk.EventVolumeListParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	if params.From != nil {
+		q.TimeframeStart = orbsdk.F(*params.From)
+	}
+	if params.To != nil {
+		q.TimeframeEnd = orbsdk.F(*params.To)
+	}
+	return q
+}
+
+func eventBackfillListParams(params app.PageParams) orbsdk.EventBackfillListParams {
+	var q orbsdk.EventBackfillListParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	return q
+}
+
+func alertListParams(params app.AlertListParams) orbsdk.AlertListParams {
+	var q orbsdk.AlertListParams
+	if params.Limit > 0 {
+		q.Limit = orbsdk.F(int64(params.Limit))
+	}
+	if params.Cursor != "" {
+		q.Cursor = orbsdk.F(params.Cursor)
+	}
+	if params.CreatedAfter != nil {
+		q.CreatedAtGte = orbsdk.F(*params.CreatedAfter)
+	}
+	if params.CreatedBefore != nil {
+		q.CreatedAtLte = orbsdk.F(*params.CreatedBefore)
+	}
+	if params.CustomerID != "" {
+		q.CustomerID = orbsdk.F(params.CustomerID)
+	}
+	if params.ExternalCustomerID != "" {
+		q.ExternalCustomerID = orbsdk.F(params.ExternalCustomerID)
+	}
+	if params.SubscriptionID != "" {
+		q.SubscriptionID = orbsdk.F(params.SubscriptionID)
 	}
 	return q
 }
