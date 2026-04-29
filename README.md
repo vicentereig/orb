@@ -1,6 +1,6 @@
 # orb
 
-Orb billing forensics from the terminal.
+Chat with your revenue in Orb.
 
 `orb` is a read-first CLI for investigating Orb customers, subscriptions, plans, prices, usage, invoices, credits, events, and related billing state. It is designed for humans and coding agents: stable JSON output, predictable flags, and no incidental terminal noise.
 
