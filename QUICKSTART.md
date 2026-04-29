@@ -25,6 +25,16 @@ export ORB_API_KEY="..."
 ./orb --pretty version
 ```
 
+## Learn Commands
+
+```sh
+./orb help --pretty
+./orb help events --pretty
+./orb help examples --pretty
+```
+
+Help output is JSON by default so humans, scripts, Codex, and Claude can inspect the same command metadata.
+
 ## Read Billing State
 
 ```sh

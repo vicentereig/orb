@@ -32,9 +32,15 @@ Date: 2026-04-28
 ### Health
 
 ```sh
+orb help
+orb help customers
+orb help events
+orb help examples
 orb version
 orb ping
 ```
+
+`orb help` returns JSON command metadata by default. Topic help includes command names, summaries, required flags, optional flags, examples, and notes. This is the primary self-discovery surface for coding agents.
 
 ### Customers
 

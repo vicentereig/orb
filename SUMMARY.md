@@ -4,6 +4,7 @@
 
 Current implemented surface:
 
+- `orb help [topic]`
 - `orb version`
 - `orb ping`
 - `orb customers list|get|costs|credits|credit-ledger`

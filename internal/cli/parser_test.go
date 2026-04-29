@@ -15,6 +15,50 @@ func TestParseVersion(t *testing.T) {
 	}
 }
 
+func TestParseHelp(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantTopic string
+		wantJSON  bool
+	}{
+		{name: "help", args: []string{"help"}},
+		{name: "help topic", args: []string{"help", "customers"}, wantTopic: "customers"},
+		{name: "help json", args: []string{"help", "--json"}, wantJSON: true},
+		{name: "help topic json", args: []string{"help", "events", "--json"}, wantTopic: "events", wantJSON: true},
+		{name: "long help flag", args: []string{"--help"}},
+		{name: "short help flag", args: []string{"-h"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, err := Parse(tt.args)
+			if err != nil {
+				t.Fatalf("Parse returned error: %v", err)
+			}
+			if cmd.Name != "help" || cmd.Operation != "help" {
+				t.Fatalf("unexpected command: %+v", cmd)
+			}
+			if cmd.HelpTopic != tt.wantTopic || cmd.HelpJSON != tt.wantJSON {
+				t.Fatalf("unexpected help options: %+v", cmd)
+			}
+		})
+	}
+}
+
+func TestParseHelpValidation(t *testing.T) {
+	tests := [][]string{
+		{"help", "customers", "events"},
+		{"help", "--wat"},
+	}
+
+	for _, args := range tests {
+		if _, err := Parse(args); err == nil {
+			t.Fatalf("expected error for %v", args)
+		}
+	}
+}
+
 func TestParsePingWithGlobalsAnywhere(t *testing.T) {
 	cmd, err := Parse([]string{"--pretty", "ping", "--timeout=10s", "--limit", "50", "--base-url", "http://localhost:8080"})
 	if err != nil {

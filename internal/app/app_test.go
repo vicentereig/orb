@@ -154,6 +154,78 @@ func TestVersion(t *testing.T) {
 	}
 }
 
+func TestHelpSuccess(t *testing.T) {
+	result := New(fakeClient{}, "dev").Help("")
+
+	var payload struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Name     string `json:"name"`
+			Commands []struct {
+				Name     string   `json:"name"`
+				Examples []string `json:"examples"`
+			} `json:"commands"`
+			Topics []string `json:"topics"`
+		} `json:"data"`
+		Meta map[string]string `json:"meta"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || payload.Data.Name != "orb" || payload.Meta["operation"] != "help" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+	if len(payload.Data.Commands) == 0 || len(payload.Data.Topics) == 0 {
+		t.Fatalf("expected commands and topics: %s", result)
+	}
+}
+
+func TestHelpTopicSuccess(t *testing.T) {
+	result := New(fakeClient{}, "dev").Help("events")
+
+	var payload struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Topic    string   `json:"topic"`
+			Notes    []string `json:"notes"`
+			Commands []struct {
+				Name          string   `json:"name"`
+				RequiredFlags []string `json:"required_flags"`
+				Examples      []string `json:"examples"`
+			} `json:"commands"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if !payload.Success || payload.Data.Topic != "events" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+	if len(payload.Data.Commands) == 0 || len(payload.Data.Notes) == 0 {
+		t.Fatalf("expected event commands and notes: %s", result)
+	}
+	if payload.Data.Commands[0].Name != "events search" || len(payload.Data.Commands[0].Examples) == 0 {
+		t.Fatalf("unexpected event help: %s", result)
+	}
+}
+
+func TestHelpUnknownTopic(t *testing.T) {
+	result := New(fakeClient{}, "dev").Help("unknown")
+
+	var payload struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Type string `json:"type"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if payload.Success || payload.Error.Type != "usage_error" {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
 func TestPingSuccess(t *testing.T) {
 	result := New(fakeClient{pingResponse: map[string]string{"response": "pong"}}, "dev").Ping(context.Background())
 

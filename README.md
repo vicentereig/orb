@@ -34,6 +34,9 @@ export ORB_BASE_URL="https://api.withorb.com"
 ## Current Commands
 
 ```sh
+orb help
+orb help events
+orb help examples
 orb version
 orb ping
 
@@ -75,6 +78,16 @@ orb alerts get --id alert_123
 ```
 
 Event search maps to Orb's explicit event ID search API. It is not a general event query by customer, name, or property.
+
+## Agent Help
+
+`orb help` returns structured JSON with topics, global flags, commands, examples, and notes. Use topic help when an agent needs command-specific required flags.
+
+```sh
+orb help --pretty
+orb help customers --pretty
+orb help events --pretty
+```
 
 Every command returns JSON:
 

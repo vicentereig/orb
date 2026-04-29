@@ -20,6 +20,7 @@ Usage:
   orb <command> [options]
 
 Commands:
+  help [topic]                Return structured help for agents and humans
   version                    Print CLI version information
   ping                       Check Orb API connectivity and credentials
   customers list|get|costs|credits|credit-ledger
@@ -40,6 +41,11 @@ Global options:
   --limit N           Page size for list commands (default: 20)
   --cursor CURSOR     Pagination cursor
   --pretty            Pretty-print JSON
+
+Help:
+  orb help
+  orb help events
+  orb help examples
 `
 
 func main() {
@@ -60,6 +66,8 @@ func main() {
 
 	var result string
 	switch cmd.Name {
+	case "help":
+		result = application.Help(cmd.HelpTopic)
 	case "version":
 		result = application.Version()
 	case "ping":

@@ -26,6 +26,8 @@ type Command struct {
 	Resource             string
 	Operation            string
 	Globals              GlobalOptions
+	HelpTopic            string
+	HelpJSON             bool
 	ID                   string
 	IDs                  []string
 	IDsFile              string
@@ -101,8 +103,20 @@ func Parse(args []string) (Command, error) {
 	}
 
 	switch remaining[0] {
+	case "--help", "-h":
+		if len(remaining) != 1 {
+			return Command{}, errors.New("--help does not accept arguments")
+		}
+		return Command{Name: "help", Operation: "help", Globals: globals}, nil
 	case "version":
 		return Command{Name: "version", Operation: "version", Globals: globals}, nil
+	case "help":
+		cmd, err := parseHelp(remaining[1:])
+		if err != nil {
+			return Command{}, err
+		}
+		cmd.Globals = globals
+		return cmd, nil
 	case "ping":
 		return Command{Name: "ping", Operation: "ping", Globals: globals}, nil
 	case "customers":
@@ -162,6 +176,25 @@ func Parse(args []string) (Command, error) {
 	default:
 		return Command{}, fmt.Errorf("unknown command: %s", remaining[0])
 	}
+}
+
+func parseHelp(args []string) (Command, error) {
+	cmd := Command{Name: "help", Operation: "help"}
+	for _, arg := range args {
+		switch arg {
+		case "--json":
+			cmd.HelpJSON = true
+		default:
+			if strings.HasPrefix(arg, "-") {
+				return Command{}, fmt.Errorf("unknown help option: %s", arg)
+			}
+			if cmd.HelpTopic != "" {
+				return Command{}, errors.New("help accepts at most one topic")
+			}
+			cmd.HelpTopic = arg
+		}
+	}
+	return cmd, nil
 }
 
 func parseCustomers(args []string) (Command, error) {
